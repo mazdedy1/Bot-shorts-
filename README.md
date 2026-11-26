@@ -29,40 +29,45 @@ Bot Discord untuk mengubah URL video YouTube menjadi video vertikal Shorts beris
 
 **Belum diuji end-to-end.** Unit tests dan pemeriksaan sintaks berjalan di GitHub Actions, tetapi pengujian runtime masih memerlukan secret aktif, akses model TTS, izin Google Drive, dan satu video uji. SFX adalah efek sintetis sederhana, bukan rekaman audio profesional; transisi saat ini berupa dip-to-black singkat, bukan cross-dissolve.
 
-## Tiga GitHub Secrets
+## GitHub Actions Secrets
 
-Buka **Settings → Secrets and variables → Actions → New repository secret**. Tambahkan:
+Buka **Settings → Secrets and variables → Actions → New repository secret**. Buat tiga secrets berikut:
 
 1. `DISCORD_TOKEN` — token bot Discord.
 2. `GEMINI_API_KEY` — API key Gemini untuk analisis video dan TTS.
-3. `GOOGLE_DRIVE_CREDENTIALS` — satu JSON berisi OAuth client ID, client secret, dan refresh token Google Drive. Jangan menaruh JSON ini di repository atau membagikannya.
+3. `GDrive_Auto` — satu JSON berisi OAuth client ID, client secret, dan refresh token Google Drive.
 
-Contoh bentuk nilai secret ketiga (gunakan nilai asli dari file hasil otorisasi, bukan contoh ini):
+Nilai `GDrive_Auto` harus berupa **satu objek JSON valid**. Untuk OAuth Client bertipe Web application, gunakan struktur ini dan ganti setiap `xxx` dengan nilai asli:
 
 ```json
 {
-  "client_id": "YOUR_CLIENT_ID",
-  "client_secret": "YOUR_CLIENT_SECRET",
-  "refresh_token": "YOUR_REFRESH_TOKEN",
-  "token_uri": "https://oauth2.googleapis.com/token"
+  "web": {
+    "client_id": "xxx",
+    "client_secret": "xxx",
+    "token_uri": "https://oauth2.googleapis.com/token"
+  },
+  "refresh_token": "xxx"
 }
 ```
+
+Jangan menambahkan dua objek JSON secara berurutan, jangan menaruh koma setelah properti terakhir, dan jangan memasukkan tanda pagar/code fence ke nilai secret. Jangan commit atau membagikan kredensial ini. Source code membaca secret melalui environment variable `GOOGLE_DRIVE_CREDENTIALS`; kredensial tidak perlu ditulis ke file Python.
 
 Opsional: tambahkan Repository Variable `GOOGLE_DRIVE_FOLDER_ID` berisi ID folder Drive tujuan. Jika kosong, file masuk ke My Drive utama.
 
 ## Menyiapkan OAuth Google Drive
 
-Gunakan akun Google yang memiliki Drive tujuan. Service Account tidak dipakai karena tidak bisa memiliki file di My Drive pribadi; OAuth mengunggah atas nama akun Google yang memberi izin.
+1. Di Google Cloud Console, pilih project dan aktifkan **Google Drive API**.
+2. Konfigurasikan Google Auth Platform / OAuth consent screen. Jika aplikasi External masih berstatus Testing, tambahkan akun Google yang akan memberi izin sebagai Test user.
+3. Buat OAuth Client ID bertipe **Web application**.
+4. Pada Authorized redirect URIs, tambahkan persis `https://developers.google.com/oauthplayground`. Authorized JavaScript origins boleh dikosongkan untuk alur ini.
+5. Buka Google OAuth 2.0 Playground. Pada pengaturan (ikon roda gigi), aktifkan **Use your own OAuth credentials**, lalu masukkan Client ID dan Client Secret dari OAuth client yang sama.
+6. Pada Step 1, pilih scope `https://www.googleapis.com/auth/drive.file`, lalu lakukan Authorize APIs dan setujui akses menggunakan akun Google Drive tujuan.
+7. Pada Step 2, tukarkan authorization code untuk token. Ambil nilai **refresh_token** dari respons token.
+8. Susun satu JSON dengan format di atas, lalu simpan langsung sebagai GitHub Secret bernama `GDrive_Auto`. Jangan kirim refresh token atau client secret ke chat, issue, log, maupun repository.
 
-1. Buka Google Cloud Console dan buat/pilih project.
-2. Aktifkan **Google Drive API**.
-3. Konfigurasikan Google Auth Platform / OAuth consent. Untuk aplikasi External dalam status Testing, tambahkan akun Google yang akan dipakai sebagai Test user.
-4. Buat OAuth Client ID dengan tipe **Desktop app**, lalu unduh JSON-nya.
-5. Di komputer lokal, pasang dependency: `pip install -r requirements.txt`.
-6. Simpan file unduhan sebagai `client_secret.json` di root repository lokal (jangan commit).
-7. Jalankan `python scripts/authorize_google_drive.py`. Browser akan meminta izin akses Drive. Script menghasilkan `google_drive_credentials.json`.
-8. Salin seluruh isi file tersebut ke GitHub Secret bernama `GOOGLE_DRIVE_CREDENTIALS`, lalu hapus salinan lokal jika sudah tidak diperlukan.
-9. Untuk penggunaan berkelanjutan, perhatikan status publikasi OAuth. Refresh token untuk aplikasi External yang masih Testing akan kedaluwarsa setelah 7 hari; ubah status ke In production jika sesuai kebutuhan dan kebijakan Google.
+File JSON yang diunduh dari Google Cloud berisi konfigurasi OAuth client (misalnya client ID, client secret, token URI), **bukan refresh token**. Gunakan file itu sebagai sumber nilai konfigurasi; refresh token didapat setelah persetujuan OAuth. Simpan file unduhan dengan aman dan jangan commit.
+
+Untuk penggunaan berkelanjutan, perhatikan status publikasi OAuth. Refresh token untuk aplikasi External yang masih Testing dapat kedaluwarsa setelah 7 hari. Ubah status ke In production jika sesuai kebutuhan dan kebijakan Google; Google dapat mensyaratkan verifikasi untuk scope tertentu.
 
 **Catatan akses tautan:** agar penerima Discord dapat membuka video, integrasi membuat izin **Anyone with the link — Viewer** untuk file hasil. Artinya siapa pun yang memperoleh tautannya dapat melihat video tersebut. Jangan gunakan untuk video privat/sensitif. File yang sudah diunggah tetapi gagal diberi izin tautan akan dihapus oleh integrasi.
 
@@ -91,6 +96,7 @@ cp .env.example .env
 python main.py
 ```
 
-Untuk fitur Google Drive, jalankan proses OAuth di atas dan masukkan nilai JSON ke `GOOGLE_DRIVE_CREDENTIALS` di file `.env` lokal. Jangan commit `.env`.
+Untuk fitur Google Drive, isi `GOOGLE_DRIVE_CREDENTIALS` di `.env` lokal dengan JSON OAuth yang sama. Jangan commit `.env`.
 
 Opsional: letakkan musik yang memang boleh digunakan di `assets/music.mp3`. Renderer mencampurnya pada volume rendah.
+```
