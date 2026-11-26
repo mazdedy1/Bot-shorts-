@@ -6,13 +6,12 @@ from google import genai
 from google.genai import types
 
 def synthesize_narration(text: str, output_path: Path, style: str = "natural, clear Indonesian narrator") -> Path:
-    """One TTS request for the complete narration."""
+    """One TTS request for the complete narration; instructions are not included in spoken text."""
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     model = os.getenv("TTS_MODEL", "gemini-3.8-flash-tts")
-    prompt = f"Read the following Indonesian narration verbatim. Vocal style: {style}. Do not add or omit words.\\n\\n{text}"
     response = client.models.generate_content(
         model=model,
-        contents=prompt,
+        contents=text,
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
             speech_config=types.SpeechConfig(
