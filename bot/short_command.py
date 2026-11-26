@@ -5,8 +5,19 @@ from pathlib import Path
 import discord
 from discord import app_commands
 
+from ai.director import analyze_video
+from audio.voice_engine import synthesize_narration
+from editor.renderer import render_short
+from editor.timeline import validate_plan
 from services.downloader import download_video
 
+def _set_field(embed: discord.Embed, name: str, value: str) -> None:
+    for index, field in enumerate(embed.fields):
+        if field.name == name:
+            embed.set_field_at(index, name=name, value=value[:1024], inline=False)
+            return
+    if len(embed.fields) < 25:
+        embed.add_field(name=name, value=value[:1024], inline=False)
 
 def register_short_command(tree: app_commands.CommandTree) -> None:
     @tree.command(name="short", description="Buat video Shorts dari URL YouTube.")
@@ -18,21 +29,76 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
         await interaction.response.send_message(embed=embed)
         message = await interaction.original_response()
 
-        async def update(status: str, color: int = 0x5865F2) -> None:
+        async def update(status: str, stage: str | None = None, detail: str | None = None, color: int = 0x5865F2) -> None:
             embed.color = color
-            embed.set_field_at(0, name="Status", value=status, inline=False)
+            _set_field(embed, "Status", status)
+            if stage:
+                _set_field(embed, "Tahap", stage)
+            if detail:
+                _set_field(embed, "Detail", detail)
             await message.edit(embed=embed)
 
+        work_dir = Path(os.getenv("WORK_DIR", "work")) / str(interaction.id)
+        work_dir.mkdir(parents=True, exist_ok=True)
         try:
-            await update("Sedang mengunduh video...")
-            work_dir = Path(os.getenv("WORK_DIR", "work")) / str(interaction.id)
-            work_dir.mkdir(parents=True, exist_ok=True)
+            await update("Mengunduh video...", "1/5 · Download")
             video_path, metadata = await asyncio.to_thread(download_video, url, work_dir)
-            embed.add_field(name="Download", value="Selesai.", inline=False)
-            embed.add_field(name="Video", value=f"{metadata.get('title', 'Video')[:250]}\nDurasi sumber: {metadata.get('duration', 0)} detik", inline=False)
-            embed.add_field(name="Tahap berikutnya", value="Fondasi download sudah berjalan. Integrasi AI Director, TTS, dan FFmpeg Editor masih dalam tahap pembangunan.", inline=False)
-            await message.edit(embed=embed)
-        except Exception:
-            await update("Proses gagal. Periksa URL, batas durasi, dan log GitHub Actions.", 0xED4245)
+            await update("Menganalisis isi video...", "2/5 · AI Director", metadata["title"][:250])
+            plan, analysis_route = await asyncio.to_thread(
+                analyze_video, metadata["webpage_url"], video_path, metadata["duration"]
+            )
+            clips, narration_text = validate_plan(plan, metadata["duration"])
+            timeline_duration = sum(c.end - c.start for c in clips)
+            await update(
+                "Menyusun narasi...", "3/5 · Voice Engine",
+                f"Metode analisis: {analysis_route}. Timeline: {timeline_duration:.1f} detik."
+            )
+            narration_path = work_dir / "narration.wav"
+            await asyncio.to_thread(
+                synthesize_narration, narration_text, narration_path,
+                str(plan.get("style", "natural, clear Indonesian narrator"))
+            )
+            await update("Merender video vertikal 9:16...", "4/5 · FFmpeg Editor")
+            output_path = work_dir / "short.mp4"
+            await asyncio.to_thread(
+                render_short, video_path, clips, narration_path, output_path, work_dir / "render", plan
+            )
+            duration_text = await asyncio.to_thread(_probe_duration, output_path)
+            file_size = output_path.stat().st_size
+            upload_limit = getattr(interaction, "filesize_limit", 8 * 1024 * 1024)
+            if file_size > upload_limit:
+                await update(
+                    "Render selesai, tetapi file terlalu besar untuk dikirim langsung ke Discord.",
+                    "5/5 · Pengiriman belum selesai",
+                    f"Ukuran MP4: {file_size / (1024 * 1024):.1f} MB. Batas Discord untuk interaksi ini: {upload_limit / (1024 * 1024):.1f} MB. Penyimpanan tautan alternatif belum dikonfigurasi.",
+                    0xED4245,
+                )
+                return
+            await update("Mengirim hasil MP4...", "5/5 · Pengiriman")
+            upload = discord.File(str(output_path), filename="short.mp4")
+            embed.title = "SHORTS MAKER · SELESAI"
+            embed.color = 0x57F287
+            _set_field(embed, "Status", "Video berhasil dibuat.")
+            _set_field(embed, "Durasi hasil", duration_text)
+            _set_field(embed, "Ukuran file", f"{file_size / (1024 * 1024):.1f} MB")
+            _set_field(embed, "Judul", str(plan.get("title", metadata["title"]))[:250])
+            await message.edit(embed=embed, attachments=[upload])
+        except Exception as exc:
+            # Error is kept in the same original progress embed.
+            reason = str(exc).strip() or exc.__class__.__name__
+            await update(
+                "Proses gagal.", "Error",
+                f"{reason[:900]}",
+                0xED4245,
+            )
 
-
+def _probe_duration(path: Path) -> str:
+    import json
+    import subprocess
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+        capture_output=True, text=True, check=True,
+    )
+    seconds = float(json.loads(result.stdout)["format"]["duration"])
+    minutes, remainder = divmod(int(seconds), 60)
+    return f"{minutes}:{remainder:02d}"
