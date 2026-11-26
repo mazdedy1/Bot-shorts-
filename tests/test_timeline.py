@@ -2,6 +2,7 @@ import unittest
 
 from editor.timeline import validate_plan
 
+
 class TimelineValidationTests(unittest.TestCase):
     def make_plan(self, clips):
         return {"narration": "Narasi uji.", "clips": clips}
@@ -33,6 +34,17 @@ class TimelineValidationTests(unittest.TestCase):
     def test_rejects_empty_narration(self):
         with self.assertRaises(ValueError):
             validate_plan({"narration": "", "clips": [{"start": 0, "end": 25}]}, 30)
+
+    def test_accepts_supported_sfx_labels(self):
+        clips = [{"start": 0, "end": 25, "sfx": "whoosh"}]
+        validated, _ = validate_plan(self.make_plan(clips), 30)
+        self.assertEqual(validated[0].sfx, "whoosh")
+
+    def test_ignores_unsupported_sfx_labels(self):
+        clips = [{"start": 0, "end": 25, "sfx": "random explosion"}]
+        validated, _ = validate_plan(self.make_plan(clips), 30)
+        self.assertEqual(validated[0].sfx, "none")
+
 
 if __name__ == "__main__":
     unittest.main()
