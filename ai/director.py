@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import time
 from pathlib import Path
 
@@ -35,7 +34,12 @@ def _client():
 
 def _extract_json(text: str) -> dict:
     cleaned = text.strip()
-    cleaned = re.sub(r"^`{3}(?:json)?s*|s*`{3}$", "", cleaned, flags=re.I)
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:]
+        if cleaned.rstrip().endswith("```"):
+            cleaned = cleaned.rstrip()[:-3]
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start < 0 or end <= start:
         raise ValueError("AI Director tidak mengembalikan JSON yang valid.")
