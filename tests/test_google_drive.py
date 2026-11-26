@@ -17,6 +17,21 @@ class GoogleDriveCredentialTests(unittest.TestCase):
         self.assertEqual(credentials.refresh_token, "refresh-token")
         self.assertEqual(credentials.scopes, [DRIVE_SCOPE])
 
+    def test_accepts_web_oauth_client_shape(self):
+        payload = {
+            "web": {
+                "client_id": "client-id",
+                "client_secret": "client-secret",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            },
+            "refresh_token": "refresh-token",
+        }
+        credentials = _credentials_from_secret(json.dumps(payload))
+        self.assertEqual(credentials.client_id, "client-id")
+        self.assertEqual(credentials.client_secret, "client-secret")
+        self.assertEqual(credentials.refresh_token, "refresh-token")
+        self.assertEqual(credentials.token_uri, "https://oauth2.googleapis.com/token")
+
     def test_accepts_downloaded_oauth_client_shape(self):
         payload = {
             "installed": {
@@ -34,8 +49,14 @@ class GoogleDriveCredentialTests(unittest.TestCase):
             _credentials_from_secret("not-json")
 
     def test_rejects_missing_refresh_token(self):
+        payload = {
+            "web": {
+                "client_id": "client-id",
+                "client_secret": "client-secret",
+            }
+        }
         with self.assertRaises(ValueError):
-            _credentials_from_secret(json.dumps({"client_id": "x", "client_secret": "y"}))
+            _credentials_from_secret(json.dumps(payload))
 
 
 if __name__ == "__main__":
