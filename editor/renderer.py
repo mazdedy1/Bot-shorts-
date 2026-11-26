@@ -1,4 +1,3 @@
-import json
 import subprocess
 from pathlib import Path
 
@@ -8,6 +7,13 @@ def _run(command: list[str]) -> None:
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode:
         raise RuntimeError((result.stderr or "FFmpeg gagal.")[-2500:])
+
+def _stamp(value: float) -> str:
+    ms = int(value * 1000)
+    h, ms = divmod(ms, 3600000)
+    m, ms = divmod(ms, 60000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02}:{m:02}:{s:02},{ms:03}"
 
 def render_short(source: Path, clips: list[Clip], narration: Path, output: Path, work_dir: Path, plan: dict) -> Path:
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -29,8 +35,12 @@ def render_short(source: Path, clips: list[Clip], narration: Path, output: Path,
             "-pix_fmt", "yuv420p", str(segment),
         ])
         segments.append(segment)
+
     concat_file = work_dir / "concat.txt"
-    concat_file.write_text("".join(f"file '{p.resolve().as_posix()}'\\n" for p in segments), encoding="utf-8")
+    concat_file.write_text(
+        "".join(f"file '{p.resolve().as_posix()}'\n" for p in segments),
+        encoding="utf-8",
+    )
     joined = work_dir / "joined.mp4"
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(joined)])
 
@@ -40,23 +50,38 @@ def render_short(source: Path, clips: list[Clip], narration: Path, output: Path,
     for index, clip in enumerate(clips, 1):
         duration = clip.end - clip.start
         if clip.caption:
-            def stamp(value: float) -> str:
-                ms = int(value * 1000)
-                h, ms = divmod(ms, 3600000)
-                m, ms = divmod(ms, 60000)
-                s, ms = divmod(ms, 1000)
-                return f"{h:02}:{m:02}:{s:02},{ms:03}"
-            entries.append(f"{index}\\n{stamp(cursor)} --> {stamp(cursor + duration)}\\n{clip.caption}\\n")
+            entries.append(
+                f"{index}\n{_stamp(cursor)} --> {_stamp(cursor + duration)}\n{clip.caption}\n"
+            )
         cursor += duration
-    subtitle_file.write_text("\\n".join(entries), encoding="utf-8")
-    escaped_sub = str(subtitle_file.resolve()).replace("\\", "/").replace(":", "\\:")
+    subtitle_file.write_text("\n".join(entries), encoding="utf-8")
     final_video = work_dir / "video_only.mp4"
+    escaped_sub = str(subtitle_file.resolve()).replace("\\", "/").replace(":", "\\:")
     vf = f"subtitles='{escaped_sub}':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,Alignment=2,MarginV=120'"
-    _run(["ffmpeg", "-y", "-i", str(joined), "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-an", str(final_video)])
-    output.parent.mkdir(parents=True, exist_ok=True)
     _run([
-        "ffmpeg", "-y", "-i", str(final_video), "-i", str(narration),
-        "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
-        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(output),
+        "ffmpeg", "-y", "-i", str(joined), "-vf", vf,
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+        "-pix_fmt", "yuv420p", "-an", str(final_video),
     ])
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    music = Path("assets/music.mp3")
+    if music.exists():
+        _run([
+            "ffmpeg", "-y", "-i", str(final_video), "-i", str(narration),
+            "-stream_loop", "-1", "-i", str(music),
+            "-filter_complex", "[1:a]volume=1.0[voice];[2:a]volume=0.12[music];[voice][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+            "-map", "0:v:0", "-map", "[aout]", "-vf", "tpad=stop_mode=clone:stop_duration=30",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(output),
+        ])
+    else:
+        _run([
+            "ffmpeg", "-y", "-i", str(final_video), "-i", str(narration),
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-vf", "tpad=stop_mode=clone:stop_duration=30",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "192k", "-shortest",
+            "-movflags", "+faststart", str(output),
+        ])
     return output
