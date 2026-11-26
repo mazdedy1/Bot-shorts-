@@ -48,7 +48,7 @@ def render_short(source: Path, clips: list[Clip], narration: Path, output: Path,
     cursor = 0.0
     entries = []
     for index, clip in enumerate(clips, 1):
-        duration = clip.end - clip.start
+        duration = clip.output_duration
         if clip.caption:
             entries.append(
                 f"{index}\n{_stamp(cursor)} --> {_stamp(cursor + duration)}\n{clip.caption}\n"
