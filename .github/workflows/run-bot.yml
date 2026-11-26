@@ -45,6 +45,9 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall -q .
 
+      - name: Run timeline tests
+        run: python -m unittest discover -s tests -v
+
       - name: Validate required secrets
         run: |
           test -n "$DISCORD_TOKEN" || (echo "::error::Missing DISCORD_TOKEN secret" && exit 1)
