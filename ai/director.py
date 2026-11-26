@@ -27,7 +27,7 @@ Schema:
  "music_mood":"none atau deskripsi singkat",
  "notes":"catatan editing singkat"
 }
-Pastikan start >= 0, end > start, klip berada dalam durasi video sumber, dan total durasi gabungan 35-180 detik.
+Pastikan start >= 0, end > start, klip berada dalam durasi video sumber, dan total durasi gabungan 20-180 detik.
 """
 
 def _client():
@@ -35,7 +35,7 @@ def _client():
 
 def _extract_json(text: str) -> dict:
     cleaned = text.strip()
-    cleaned = re.sub(r"^\u0060{3}(?:json)?\\s*|\\s*\u0060{3}$", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"^`{3}(?:json)?s*|s*`{3}$", "", cleaned, flags=re.I)
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start < 0 or end <= start:
         raise ValueError("AI Director tidak mengembalikan JSON yang valid.")
@@ -58,16 +58,14 @@ def _generate(client, model: str, video_part, prompt: str) -> dict:
 def analyze_video(youtube_url: str, video_path: Path, source_duration: float) -> tuple[dict, str]:
     client = _client()
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    prompt = DIRECTOR_PROMPT + f"\\nDurasi sumber video: {source_duration:.1f} detik."
-    # First route: pass the actual YouTube URL as file_data, not as plain prompt text.
+    prompt = DIRECTOR_PROMPT + f"\nDurasi sumber video: {source_duration:.1f} detik."
+    # Route 1: the YouTube URL is sent as file_data, not plain prompt text.
     try:
-        part = types.Part(
-            file_data=types.FileData(file_uri=youtube_url, mime_type="video/*")
-        )
+        part = types.Part(file_data=types.FileData(file_uri=youtube_url, mime_type="video/*"))
         plan = _generate(client, model, part, prompt)
         return plan, "URL video"
     except Exception:
-        # Fallback: upload the already-downloaded MP4 and wait for ACTIVE processing.
+        # Route 2: upload the existing MP4 and submit the exact same prompt.
         uploaded = client.files.upload(
             file=str(video_path),
             config=types.UploadFileConfig(mime_type="video/mp4"),
