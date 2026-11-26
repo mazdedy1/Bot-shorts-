@@ -15,7 +15,9 @@ Target durasi hasil sekitar 60 detik, tetapi fleksibel mengikuti materi dan nara
 Jangan memaksakan tepat 60 detik. Buat 4-12 klip, masing-masing punya start dan end dalam detik sumber.
 Setiap klip harus punya caption singkat Bahasa Indonesia. Narasi final harus menyatu sebagai satu naskah.
 Jangan mengarang peristiwa yang tidak terlihat/terdengar. Bila konteks tidak jelas, gunakan deskripsi netral.
-Tambahkan effects hanya dari: none, zoom_in, zoom_out, slow. SFX hanya label deskriptif pendek atau none.
+Tambahkan effects hanya dari: none, zoom_in, zoom_out, slow.
+SFX hanya boleh salah satu label persis: none, whoosh, impact, ding, pop.
+Gunakan SFX seperlunya; sebagian besar klip sebaiknya memakai none.
 Output JSON saja, tanpa markdown.
 Schema:
 {
@@ -63,13 +65,11 @@ def analyze_video(youtube_url: str, video_path: Path, source_duration: float) ->
     client = _client()
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     prompt = DIRECTOR_PROMPT + f"\nDurasi sumber video: {source_duration:.1f} detik."
-    # Route 1: pass the public YouTube URL as file_data, not as plain prompt text.
     try:
         part = types.Part(file_data=types.FileData(file_uri=youtube_url))
         plan = _generate(client, model, part, prompt)
         return plan, "URL video"
     except Exception:
-        # Route 2: upload the existing MP4 and submit the exact same prompt.
         uploaded = client.files.upload(
             file=str(video_path),
             config=types.UploadFileConfig(mime_type="video/mp4"),
