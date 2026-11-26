@@ -15,6 +15,7 @@ Bot Discord untuk mengubah URL video YouTube menjadi video vertikal Shorts beris
 ## Status dan batasan
 
 - [x] Workflow GitHub Actions manual, maksimum 360 menit
+- [x] Automated syntax check dan unit tests saat push/pull request
 - [x] Bot Discord dan slash command
 - [x] Download YouTube dengan validasi host, durasi, dan ukuran
 - [x] AI Director: URL video dahulu, fallback upload file
@@ -24,8 +25,9 @@ Bot Discord untuk mengubah URL video YouTube menjadi video vertikal Shorts beris
 - [x] Musik latar opsional melalui file lokal
 - [ ] Penyimpanan alternatif dan tautan download otomatis jika MP4 melewati batas upload Discord
 - [ ] Pemetaan efek SFX otomatis; saat ini field SFX dari Director belum diproses oleh renderer
+- [ ] Transisi antar-klip lanjutan
 
-**Belum diuji end-to-end.** Implementasi API dan renderer sudah ditulis, tetapi validasi runtime memerlukan API key, token Discord, akses model TTS, dan satu video uji. Jangan anggap workflow sudah berjalan sebelum dijalankan dari tab Actions.
+**Belum diuji end-to-end.** Implementasi API dan renderer sudah ditulis, tetapi validasi runtime memerlukan API key, token Discord, akses model TTS, dan satu video uji. Automated tests akan berjalan melalui GitHub Actions setelah push, tetapi itu tidak menggantikan pengujian render dengan video nyata.
 
 ## GitHub Secrets dan Variables
 
