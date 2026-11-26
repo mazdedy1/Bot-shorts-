@@ -24,7 +24,7 @@ class ShortsBot(discord.Client):
 
 
 def main() -> None:
-    required = ("DISCORD_TOKEN", "GEMINI_API_KEY", "GOOGLE_DRIVE_CREDENTIALS")
+    required = ("DISCORD_TOKEN", "GEMINI_API_KEY")
     missing = [name for name in required if not os.getenv(name)]
     if missing:
         raise RuntimeError("Secret wajib belum diatur: " + ", ".join(missing))
