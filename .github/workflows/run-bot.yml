@@ -18,7 +18,7 @@ jobs:
     env:
       DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+      GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GDrive_Auto }}
       GOOGLE_DRIVE_FOLDER_ID: ${{ vars.GOOGLE_DRIVE_FOLDER_ID }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
       TTS_MODEL: ${{ vars.TTS_MODEL || 'gemini-3.8-flash-tts' }}
@@ -54,7 +54,7 @@ jobs:
         run: |
           test -n "$DISCORD_TOKEN" || (echo "::error::Missing DISCORD_TOKEN secret" && exit 1)
           test -n "$GEMINI_API_KEY" || (echo "::error::Missing GEMINI_API_KEY secret" && exit 1)
-          test -n "$GOOGLE_DRIVE_CREDENTIALS" || (echo "::error::Missing GOOGLE_DRIVE_CREDENTIALS secret" && exit 1)
+          test -n "$GOOGLE_DRIVE_CREDENTIALS" || (echo "::error::Missing GDrive_Auto secret" && exit 1)
           ffmpeg -hide_banner -filters | grep -q subtitles || (echo "::error::FFmpeg subtitles filter is unavailable" && exit 1)
 
       - name: Start Discord bot
