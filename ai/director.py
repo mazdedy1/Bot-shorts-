@@ -63,9 +63,9 @@ def analyze_video(youtube_url: str, video_path: Path, source_duration: float) ->
     client = _client()
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     prompt = DIRECTOR_PROMPT + f"\nDurasi sumber video: {source_duration:.1f} detik."
-    # Route 1: the YouTube URL is sent as file_data, not plain prompt text.
+    # Route 1: pass the public YouTube URL as file_data, not as plain prompt text.
     try:
-        part = types.Part(file_data=types.FileData(file_uri=youtube_url, mime_type="video/*"))
+        part = types.Part(file_data=types.FileData(file_uri=youtube_url))
         plan = _generate(client, model, part, prompt)
         return plan, "URL video"
     except Exception:
