@@ -5,7 +5,7 @@ Bot Discord untuk mengubah URL video YouTube menjadi video vertikal Shorts beris
 ## Alur
 
 1. Slash command `/short <url>` membuat satu embed progres dan memperbarui pesan yang sama.
-2. Download sumber YouTube menggunakan pytubefix 11.2.2, memilih stream MP4 hingga 1080p dan menggabungkan audio/video adaptif dengan FFmpeg (maksimum 30 menit dan 500 MB secara default).
+2. Download sumber YouTube menggunakan pytubefix 11.2.2 dengan client WEB dan pembuatan PO Token otomatis via BotGuard/Node.js, memilih stream MP4 hingga 1080p dan menggabungkan audio/video adaptif dengan FFmpeg (maksimum 30 menit dan 500 MB secara default).
 3. AI Director mengirim URL YouTube sebagai input video Gemini. Jika gagal, file MP4 yang sudah diunduh diunggah ke Files API dan dianalisis dengan prompt yang sama.
 4. Timeline memvalidasi klip sumber dan durasi hasil 20-180 detik. Target sekitar 60 detik, tidak wajib tepat 60.
 5. Voice Engine membuat seluruh narasi dalam satu permintaan TTS.
