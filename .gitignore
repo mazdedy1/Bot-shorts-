@@ -1,8 +1,12 @@
 .env
-.venv/
+.env.*
+!.env.example
+work/
 __pycache__/
 *.py[cod]
-work/
 *.mp4
 *.wav
-*.json.tmp
+*.mp3
+client_secret*.json
+google_drive_credentials.json
+token.json
