@@ -1,8 +1,4 @@
 discord.py>=2.4,<3
 google-genai>=1.30.0,<2
-google-api-python-client>=2.150.0,<3
-google-auth>=2.36.0,<3
-google-auth-httplib2>=0.2.0,<1
-google-auth-oauthlib>=1.2.1,<2
 yt-dlp>=2025.1.0
 python-dotenv>=1.0.0
