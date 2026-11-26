@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 MAX_OUTPUT_SECONDS = 180
 MIN_OUTPUT_SECONDS = 20
+ALLOWED_SFX = {"none", "whoosh", "impact", "ding", "pop"}
+
 
 @dataclass
 class Clip:
@@ -15,6 +17,7 @@ class Clip:
     def output_duration(self) -> float:
         duration = self.end - self.start
         return duration * 1.08 if self.effect == "slow" else duration
+
 
 def validate_plan(plan: dict, source_duration: float) -> tuple[list[Clip], str]:
     if not isinstance(plan, dict):
@@ -39,12 +42,15 @@ def validate_plan(plan: dict, source_duration: float) -> tuple[list[Clip], str]:
         effect = str(item.get("effect", "none")).lower()
         if effect not in {"none", "zoom_in", "zoom_out", "slow"}:
             effect = "none"
+        sfx = str(item.get("sfx", "none")).strip().lower()
+        if sfx not in ALLOWED_SFX:
+            sfx = "none"
         clips.append(Clip(
             start=start,
             end=min(end, source_duration),
             caption=str(item.get("caption", "")).strip()[:180],
             effect=effect,
-            sfx=str(item.get("sfx", "none"))[:60],
+            sfx=sfx,
         ))
     total = sum(c.output_duration for c in clips)
     if not MIN_OUTPUT_SECONDS <= total <= MAX_OUTPUT_SECONDS:
