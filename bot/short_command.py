@@ -27,7 +27,16 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
         embed.add_field(name="Status", value="Permintaan diterima.", inline=False)
         embed.add_field(name="Sumber video", value=url[:1000], inline=False)
         await interaction.response.send_message(embed=embed)
-        message = await interaction.original_response()
+        original = await interaction.original_response()
+        message = original
+        # Use a normal channel Message when possible, so long renders are not tied
+        # to the short-lived interaction webhook token.
+        fetch_message = getattr(interaction.channel, "fetch_message", None)
+        if fetch_message:
+            try:
+                message = await fetch_message(original.id)
+            except discord.HTTPException:
+                pass
 
         async def update(status: str, stage: str | None = None, detail: str | None = None, color: int = 0x5865F2) -> None:
             embed.color = color
@@ -48,7 +57,7 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
                 analyze_video, metadata["webpage_url"], video_path, metadata["duration"]
             )
             clips, narration_text = validate_plan(plan, metadata["duration"])
-            timeline_duration = sum(c.end - c.start for c in clips)
+            timeline_duration = sum(c.output_duration for c in clips)
             await update(
                 "Menyusun narasi...", "3/5 · Voice Engine",
                 f"Metode analisis: {analysis_route}. Timeline: {timeline_duration:.1f} detik."
@@ -65,7 +74,7 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
             )
             duration_text = await asyncio.to_thread(_probe_duration, output_path)
             file_size = output_path.stat().st_size
-            upload_limit = getattr(interaction, "filesize_limit", 8 * 1024 * 1024)
+            upload_limit = int(getattr(interaction, "filesize_limit", 8 * 1024 * 1024) or 8 * 1024 * 1024)
             if file_size > upload_limit:
                 await update(
                     "Render selesai, tetapi file terlalu besar untuk dikirim langsung ke Discord.",
@@ -84,13 +93,8 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
             _set_field(embed, "Judul", str(plan.get("title", metadata["title"]))[:250])
             await message.edit(embed=embed, attachments=[upload])
         except Exception as exc:
-            # Error is kept in the same original progress embed.
             reason = str(exc).strip() or exc.__class__.__name__
-            await update(
-                "Proses gagal.", "Error",
-                f"{reason[:900]}",
-                0xED4245,
-            )
+            await update("Proses gagal.", "Error", reason[:900], 0xED4245)
 
 def _probe_duration(path: Path) -> str:
     import json
