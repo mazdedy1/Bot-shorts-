@@ -24,12 +24,11 @@ class ShortsBot(discord.Client):
 
 
 def main() -> None:
-    token = os.getenv("DISCORD_TOKEN")
-    if not token:
-        raise RuntimeError("DISCORD_TOKEN belum diatur.")
-    if not os.getenv("GEMINI_API_KEY"):
-        raise RuntimeError("GEMINI_API_KEY belum diatur.")
-    ShortsBot().run(token, log_handler=None)
+    required = ("DISCORD_TOKEN", "GEMINI_API_KEY", "GOOGLE_DRIVE_CREDENTIALS")
+    missing = [name for name in required if not os.getenv(name)]
+    if missing:
+        raise RuntimeError("Secret wajib belum diatur: " + ", ".join(missing))
+    ShortsBot().run(os.environ["DISCORD_TOKEN"], log_handler=None)
 
 
 if __name__ == "__main__":
