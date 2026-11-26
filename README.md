@@ -9,25 +9,25 @@ Bot Discord untuk mengubah URL video YouTube menjadi video vertikal Shorts beris
 3. AI Director mengirim URL YouTube sebagai input video Gemini. Jika gagal, file MP4 yang sudah diunduh diunggah ke Files API dan dianalisis dengan prompt yang sama.
 4. Timeline memvalidasi klip sumber dan durasi hasil 20-180 detik. Target sekitar 60 detik, tidak wajib tepat 60.
 5. Voice Engine membuat seluruh narasi dalam satu permintaan TTS.
-6. FFmpeg menyusun klip, crop 9:16 1080x1920, efek zoom/slow, subtitle, dan audio narasi. Musik latar opsional dibaca dari `assets/music.mp3`.
+6. FFmpeg menyusun klip, crop 9:16 1080x1920, efek zoom/slow, subtitle, transisi dip-to-black, SFX sintetis, musik opsional, dan narasi.
 7. MP4 dikirim ke Discord jika ukurannya sesuai batas upload. Jika terlalu besar (atau Discord menolak upload), MP4 otomatis diunggah ke Google Drive dan tautan akses ditambahkan ke embed progres yang sama.
 
 ## Status dan batasan
 
 - [x] Workflow GitHub Actions manual, maksimum 360 menit
 - [x] Automated syntax check dan unit tests saat push/pull request
-- [x] Bot Discord dan slash command
+- [x] Bot Discord dan slash command dengan satu embed progres
 - [x] Download YouTube dengan validasi host, durasi, dan ukuran
 - [x] AI Director: URL video dahulu, fallback upload file
 - [x] Timeline fleksibel, target 60 detik, maksimum 180 detik
 - [x] TTS satu permintaan per video melalui GenerateContent
 - [x] FFmpeg render vertikal, subtitle, zoom/slow, audio narasi
+- [x] Transisi dip-to-black singkat antar-klip
+- [x] SFX sintetis whoosh, impact, ding, dan pop berdasarkan label AI
 - [x] Musik latar opsional melalui file lokal
 - [x] Google Drive OAuth 2.0 upload dan tautan viewer untuk fallback file besar
-- [ ] Pemetaan efek SFX otomatis; field SFX dari Director belum diproses oleh renderer
-- [ ] Transisi antar-klip lanjutan
 
-**Belum diuji end-to-end.** Unit tests dan pemeriksaan sintaks berjalan di GitHub Actions, tetapi pengujian runtime masih memerlukan secret aktif, akses model TTS, izin Google Drive, dan satu video uji.
+**Belum diuji end-to-end.** Unit tests dan pemeriksaan sintaks berjalan di GitHub Actions, tetapi pengujian runtime masih memerlukan secret aktif, akses model TTS, izin Google Drive, dan satu video uji. SFX adalah efek sintetis sederhana, bukan rekaman audio profesional; transisi saat ini berupa dip-to-black singkat, bukan cross-dissolve.
 
 ## Tiga GitHub Secrets
 
