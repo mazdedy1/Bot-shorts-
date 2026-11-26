@@ -10,7 +10,6 @@ from audio.voice_engine import synthesize_narration
 from editor.renderer import render_short
 from editor.timeline import validate_plan
 from services.downloader import download_video
-from services.google_drive import upload_video_to_drive
 
 
 def _set_field(embed: discord.Embed, name: str, value: str) -> None:
@@ -53,24 +52,6 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
                 _set_field(embed, "Detail", detail)
             await message.edit(embed=embed)
 
-        async def deliver_to_drive(output_path: Path, file_size: int, duration_text: str, title: str) -> None:
-            await update(
-                "Mengunggah hasil ke Google Drive...",
-                "5/5 · Penyimpanan alternatif",
-                f"Ukuran MP4: {file_size / (1024 * 1024):.1f} MB.",
-            )
-            drive_file = await asyncio.to_thread(
-                upload_video_to_drive, output_path, "short.mp4"
-            )
-            embed.title = "SHORTS MAKER · SELESAI"
-            embed.color = 0x57F287
-            _set_field(embed, "Status", "Video berhasil dibuat dan disimpan.")
-            _set_field(embed, "Durasi hasil", duration_text)
-            _set_field(embed, "Ukuran file", f"{file_size / (1024 * 1024):.1f} MB")
-            _set_field(embed, "Judul", title[:250])
-            _set_field(embed, "Tautan video", f"[Buka video di Google Drive]({drive_file['url']})")
-            await message.edit(embed=embed, attachments=[])
-
         work_dir = Path(os.getenv("WORK_DIR", "work")) / str(interaction.id)
         work_dir.mkdir(parents=True, exist_ok=True)
         try:
@@ -106,9 +87,21 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
             file_size = output_path.stat().st_size
             upload_limit = int(getattr(interaction, "filesize_limit", 8 * 1024 * 1024) or 8 * 1024 * 1024)
             title = str(plan.get("title", metadata["title"]))
+            size_text = f"{file_size / (1024 * 1024):.1f} MB"
 
             if file_size > upload_limit:
-                await deliver_to_drive(output_path, file_size, duration_text, title)
+                embed.title = "SHORTS MAKER · SELESAI"
+                embed.color = 0x57F287
+                _set_field(embed, "Status", "Video selesai, disimpan untuk GitHub Artifact.")
+                _set_field(embed, "Durasi hasil", duration_text)
+                _set_field(embed, "Ukuran file", size_text)
+                _set_field(embed, "Judul", title[:250])
+                _set_field(
+                    embed, "Cara mengambil video",
+                    "File akan muncul di GitHub Actions → workflow run ini → Artifacts "
+                    "setelah sesi bot dihentikan dan workflow menyelesaikan langkah upload."
+                )
+                await message.edit(embed=embed)
                 return
 
             await update("Mengirim hasil MP4...", "5/5 · Pengiriman")
@@ -116,14 +109,24 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
                 upload = discord.File(str(output_path), filename="short.mp4")
                 embed.title = "SHORTS MAKER · SELESAI"
                 embed.color = 0x57F287
-                _set_field(embed, "Status", "Video berhasil dibuat.")
+                _set_field(embed, "Status", "Video berhasil dibuat dan dikirim ke Discord.")
                 _set_field(embed, "Durasi hasil", duration_text)
-                _set_field(embed, "Ukuran file", f"{file_size / (1024 * 1024):.1f} MB")
+                _set_field(embed, "Ukuran file", size_text)
                 _set_field(embed, "Judul", title[:250])
                 await message.edit(embed=embed, attachments=[upload])
             except discord.HTTPException:
-                # Discord's actual upload limit can differ from the limit exposed by the interaction.
-                await deliver_to_drive(output_path, file_size, duration_text, title)
+                embed.title = "SHORTS MAKER · SELESAI"
+                embed.color = 0x57F287
+                _set_field(embed, "Status", "Video selesai, disimpan untuk GitHub Artifact.")
+                _set_field(embed, "Durasi hasil", duration_text)
+                _set_field(embed, "Ukuran file", size_text)
+                _set_field(embed, "Judul", title[:250])
+                _set_field(
+                    embed, "Cara mengambil video",
+                    "Discord menolak lampiran. File akan tersedia di GitHub Actions → Artifacts "
+                    "setelah sesi bot dihentikan dan workflow menyelesaikan langkah upload."
+                )
+                await message.edit(embed=embed)
         except Exception as exc:
             reason = str(exc).strip() or exc.__class__.__name__
             await update("Proses gagal.", "Error", reason[:900], 0xED4245)
