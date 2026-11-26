@@ -29,8 +29,6 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
         await interaction.response.send_message(embed=embed)
         original = await interaction.original_response()
         message = original
-        # Use a normal channel Message when possible, so long renders are not tied
-        # to the short-lived interaction webhook token.
         fetch_message = getattr(interaction.channel, "fetch_message", None)
         if fetch_message:
             try:
@@ -67,6 +65,12 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
                 synthesize_narration, narration_text, narration_path,
                 str(plan.get("style", "natural, clear Indonesian narrator"))
             )
+            narration_seconds = await asyncio.to_thread(_probe_seconds, narration_path)
+            if not 20 <= narration_seconds <= 180:
+                raise ValueError(
+                    f"Durasi narasi {narration_seconds:.1f} detik di luar batas 20-180 detik. "
+                    "Perlu penyesuaian naskah."
+                )
             await update("Merender video vertikal 9:16...", "4/5 · FFmpeg Editor")
             output_path = work_dir / "short.mp4"
             await asyncio.to_thread(
@@ -96,13 +100,16 @@ def register_short_command(tree: app_commands.CommandTree) -> None:
             reason = str(exc).strip() or exc.__class__.__name__
             await update("Proses gagal.", "Error", reason[:900], 0xED4245)
 
-def _probe_duration(path: Path) -> str:
+def _probe_seconds(path: Path) -> float:
     import json
     import subprocess
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
         capture_output=True, text=True, check=True,
     )
-    seconds = float(json.loads(result.stdout)["format"]["duration"])
-    minutes, remainder = divmod(int(seconds), 60)
+    return float(json.loads(result.stdout)["format"]["duration"])
+
+def _probe_duration(path: Path) -> str:
+    seconds = int(_probe_seconds(path))
+    minutes, remainder = divmod(seconds, 60)
     return f"{minutes}:{remainder:02d}"
