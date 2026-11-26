@@ -17,7 +17,8 @@ def download_video(url: str, destination: Path) -> tuple[Path, dict]:
     max_bytes = int(os.getenv("MAX_DOWNLOAD_MB", "500")) * 1024 * 1024
     destination.mkdir(parents=True, exist_ok=True)
 
-    yt = YouTube(url.strip())
+    # WEB client enables pytubefix's automatic BotGuard PO Token generation.
+    yt = YouTube(url.strip(), 'WEB')
     duration = int(yt.length or 0)
     if duration <= 0 or duration > max_minutes * 60:
         raise ValueError(f"Durasi video harus antara 1 detik dan {max_minutes} menit.")
