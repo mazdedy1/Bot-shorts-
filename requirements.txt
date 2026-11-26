@@ -1,4 +1,4 @@
 discord.py>=2.4,<3
 google-genai>=1.30.0,<2
-yt-dlp>=2025.1.0
+yt-dlp==2026.11.23
 python-dotenv>=1.0.0
