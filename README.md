@@ -99,4 +99,3 @@ python main.py
 Untuk fitur Google Drive, isi `GOOGLE_DRIVE_CREDENTIALS` di `.env` lokal dengan JSON OAuth yang sama. Jangan commit `.env`.
 
 Opsional: letakkan musik yang memang boleh digunakan di `assets/music.mp3`. Renderer mencampurnya pada volume rendah.
-```
